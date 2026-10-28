@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excalidraw Tweaks</title>
+<style>
+  :root {
+    --bg: #f6f6f9; --panel: #ffffff; --text: #1b1b1f; --muted: #6b6b76;
+    --line: #e3e3ea; --accent: #6965db; --accent-soft: #ecebff; --warn: #c92a2a;
+    --warn-soft: #fff0f0; --radius: 10px;
+    font-family: "Assistant", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214; --panel: #1c1c21; --text: #ececf1; --muted: #9a9aa6;
+      --line: #2e2e36; --accent: #a8a5ff; --accent-soft: #2a2944; --warn: #ff8787; --warn-soft: #3a1f22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 80px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 4px; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; line-height: 1.45; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; }
+  #status { font-size: 12.5px; color: var(--muted); min-height: 1em; }
+  code, kbd { font-family: ui-monospace, "Cascadia Code", Menlo, monospace; font-size: 12px; }
+  kbd { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
+  /* Toolbar editor: mirrors Excalidraw's own toolbar island */
+  .bar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px;
+         background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+         box-shadow: 0 1px 4px rgba(0,0,0,.08); max-width: 100%; }
+  .bar .divider { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--line); }
+  .tile { position: relative; width: 40px; height: 40px; padding: 0; display: grid; place-items: center;
+          background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: grab; color: var(--text); }
+  .tile:hover { background: var(--bg); border-color: transparent; }
+  .tile.sel { background: var(--accent-soft); border-color: var(--accent); }
+  .tile .ico svg { width: 18px; height: 18px; display: block; }
+  .tile .key { position: absolute; right: 3px; bottom: 1px; font-size: 9px; line-height: 1; color: var(--muted); font-weight: 600; }
+  .tile.off .ico, .tile.off .key { opacity: .35; }
+  .tile.off::after { content: ""; position: absolute; left: 7px; right: 7px; top: 50%; height: 2px;
+                     background: var(--warn); transform: rotate(-45deg); border-radius: 1px; }
+  .tile.bad { box-shadow: inset 0 0 0 1px var(--warn); }
+  .tile.dragging { opacity: .3; }
+  .tile.drop-before { box-shadow: -3px 0 0 var(--accent); }
+  .tile.drop-after { box-shadow: 3px 0 0 var(--accent); }
+  .ico { display: inline-grid; place-items: center; font-weight: 700; }
+
+  .detail { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: var(--bg); }
+  .detail-head { display: flex; align-items: center; gap: 12px; }
+  .detail-head > .ico { width: 40px; height: 40px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); flex: none; }
+  .detail-head > .ico svg { width: 22px; height: 22px; }
+  .detail-head > div { flex: 1; min-width: 0; }
+  .detail-name { font-weight: 600; font-size: 15px; }
+  .detail-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .toggle { flex: none; padding: 6px 10px; }
+  .toggle.is-off { color: var(--warn); border-color: var(--warn); }
+  .field { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+  .detail-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; min-height: 18px; font-size: 12px; }
+  button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line);
+           border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .35; cursor: default; border-color: var(--line); }
+  button.link { background: none; border: 0; color: var(--accent); padding: 0; font-size: 12px; }
+  label.show { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  input[type=text] { width: 100%; font: inherit; font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+                     color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  input[type=text]:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  input.conflict { border-color: var(--warn); background: var(--warn-soft); }
+  .keys { display: flex; flex-direction: column; gap: 3px; }
+  .keys .row { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--muted); }
+  .warn { color: var(--warn); }
+
+  .palette-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; }
+  .palette-head:first-of-type { margin-top: 0; }
+  .swatches { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 8px 0 6px; }
+  .swatch { border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 5px; background: var(--bg); }
+  .swatch .chip { height: 26px; width: 100%; padding: 0; border-radius: 5px; border: 1px solid var(--line); cursor: pointer; }
+  .swatch .chip:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+  label.check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
+  .ui-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .ui-label { font-size: 13px; color: var(--muted); width: 84px; flex: none; }
+  .ui-chip { width: 32px; height: 28px; padding: 0; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; flex: none;
+             background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+  .ui-chip:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  #ui-panel { max-width: 180px; }
+
+  .spectrum { position: absolute; z-index: 10; padding: 8px; background: var(--panel); border: 1px solid var(--line);
+              border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 6px; }
+  .spec-canvas { display: block; border-radius: 5px; cursor: crosshair; }
+  .spec-row { display: flex; align-items: center; gap: 8px; }
+  .spec-preview { width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--line); flex: none; }
+  .spec-hex { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .spec-copy { padding: 2px 8px; font-size: 12px; }
+  .spec-tip { font-size: 11px; color: var(--muted); }
+  .swatch .chip.transparent { background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+  .swatch input[type=text] { padding: 3px 5px; font-size: 11.5px; }
+  .swatch .ctrl { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); }
+  .swatch .ctrl button { padding: 0 5px; font-size: 11px; }
+  .swatch { cursor: grab; }
+  .swatch .grip { user-select: none; }
+  .swatch.dragging { opacity: .3; }
+  .swatch.drop-before { box-shadow: -4px 0 0 var(--accent); }
+  .swatch.drop-after { box-shadow: 4px 0 0 var(--accent); }
+  .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid2 label { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .empty { color: var(--muted); padding: 10px 0; }
+
+  @media (max-width: 560px) {
+    .detail-head { flex-wrap: wrap; }
+    .toggle { width: 100%; }
+    .swatches { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Excalidraw Tweaks</h1>
+    <span id="status"></span>
+  </header>
+
+  <section>
+    <h2>Toolbar &amp; shortcuts</h2>
+    <p class="hint">Your Excalidraw toolbar. <b>Drag</b> to reorder, <b>double-click</b> to hide or show, <b>click</b> to change a shortcut. Crossed-out tools are hidden on the site.
+      Shortcuts are comma-separated, e.g. <kbd>p, 3</kbd> or <kbd>alt+d</kbd>. A default key you take away from a tool is blocked, so it won't fall back to it.</p>
+    <div id="tools"></div>
+  </section>
+
+  <section>
+    <h2>Quick-pick colors</h2>
+    <p class="hint">These replace the row of swatches beside Stroke and Background. Five fit per row; add more and they wrap onto extra rows.
+      Click a swatch to open the color spectrum (hover to see the hex, click to use it), or type a hex code (<code>transparent</code> works for background).</p>
+    <div id="palettes"></div>
+  </section>
+
+  <section>
+    <h2>Interface</h2>
+    <p class="hint">Keep Excalidraw in <b>light mode</b> (so your colors are exact) and give the toolbar and panels a dark look anyway. Set the canvas color itself from Excalidraw's ☰ menu.</p>
+    <label class="check"><input type="checkbox" id="ui-dark"> Dark interface in light mode</label>
+    <div class="ui-row">
+      <span class="ui-label">Panel color</span>
+      <button type="button" class="chip ui-chip" id="ui-panel-chip" title="Pick from the color spectrum"></button>
+      <input type="text" id="ui-panel" placeholder="Excalidraw default" spellcheck="false">
+      <button type="button" class="link" id="ui-panel-reset">Use default</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Color hotkeys</h2>
+    <p class="hint">Hold these modifiers and press <kbd>1</kbd>–<kbd>9</kbd> (<kbd>0</kbd> = 10th) to pick that quick-pick color. It applies to anything selected and to what you draw next. Leave empty to turn off.</p>
+    <div class="grid2">
+      <label>Stroke modifiers <input type="text" id="ck-stroke" placeholder="alt"></label>
+      <label>Background modifiers <input type="text" id="ck-background" placeholder="alt+shift"></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Share &amp; back up</h2>
+    <p class="hint">Export saves everything above (toolbar order, hidden and pinned tools, shortcuts, colors, color hotkeys, interface) to one file. Import that file on another computer, or send it to someone, to get the exact same setup.</p>
+    <div class="row-actions">
+      <button type="button" id="export">Export settings</button>
+      <button type="button" id="import">Import settings…</button>
+      <input type="file" id="import-file" accept=".json,application/json" hidden>
+    </div>
+    <p class="hint" id="io-status" style="margin:10px 0 0"></p>
+  </section>
+
+  <section>
+    <h2>Reset</h2>
+    <p class="hint">Back to stock Excalidraw: every tool shown in its original order, original shortcuts, original colors.</p>
+    <button id="reset-all">Reset everything</button>
+  </section>
+</main>
+<script src="shared.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

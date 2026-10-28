@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Excalidraw Tweaks",
+  "version": "0.6.2",
+  "description": "Remap Excalidraw tool shortcuts, hide and reorder tools, and set your own color palettes with hotkeys.",
+  "permissions": ["storage"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Excalidraw Tweaks settings" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "content_scripts": [
+    {
+      "matches": ["https://excalidraw.com/*"],
+      "js": ["shared.js", "bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://excalidraw.com/*"],
+      "js": ["page.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
